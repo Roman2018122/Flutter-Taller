@@ -15,10 +15,8 @@ class AuthProvider extends ChangeNotifier {
 
   AuthProvider({required AuthRepository authRepository})
     : _authRepository = authRepository {
-    // Apenas se enciende la app, verifica si hay una sesión guardada
     checkStatus();
   }
-
   // ── Getters para que las pantallas lean el estado ────────────────
   AuthStatus get status => _status;
   LoggedUser? get currentUser => _currentUser;
