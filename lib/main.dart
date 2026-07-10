@@ -12,7 +12,27 @@ import 'package:taller_mecanico_app/theme/app_theme.dart';
 // Módulo de clientes
 import 'package:taller_mecanico_app/domain/repository/cliente_repository.dart';
 import 'package:taller_mecanico_app/data/repository/cliente_repository_impl.dart';
-import 'package:taller_mecanico_app/presentation/providers/cliente_provider.dart'; // 🛠️ Importación añadida
+import 'package:taller_mecanico_app/presentation/providers/cliente_provider.dart';
+
+// Módulo de marcas
+import 'package:taller_mecanico_app/domain/repository/marca_repository.dart';
+import 'package:taller_mecanico_app/data/repository/marca_repository_impl.dart';
+import 'package:taller_mecanico_app/presentation/providers/marca_provider.dart';
+
+// Módulo de vehículos
+import 'package:taller_mecanico_app/domain/repository/vehiculo_repository.dart';
+import 'package:taller_mecanico_app/data/repository/vehiculo_repository_impl.dart';
+import 'package:taller_mecanico_app/presentation/providers/vehiculo_provider.dart';
+
+// Módulo de repuestos
+import 'package:taller_mecanico_app/domain/repository/repuesto_repository.dart';
+import 'package:taller_mecanico_app/data/repository/repuesto_repository_impl.dart';
+import 'package:taller_mecanico_app/presentation/providers/repuesto_provider.dart';
+
+// 🛠️ MÓDULO DE PROVEEDORES INYECTADO:
+import 'package:taller_mecanico_app/domain/repository/proveedor_repository.dart';
+import 'package:taller_mecanico_app/data/repository/proveedor_repository_impl.dart';
+import 'package:taller_mecanico_app/presentation/providers/proveedor_provider.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,22 +46,39 @@ void main() {
   );
 
   final clienteRepository = ClienteRepositoryImpl(dioClient: dioClient);
+  final marcaRepository = MarcaRepositoryImpl(dioClient: dioClient);
+  final vehiculoRepository = VehiculoRepositoryImpl(dioClient: dioClient);
+  final repuestoRepository = RepuestoRepositoryImpl(dioClient: dioClient);
+  final proveedorRepository = ProveedorRepositoryImpl(dioClient: dioClient); // 🛠️ Repositorio instanciado
 
-  // 🛠️ FIX: Se unificó a una sola llamada pasando ambos repositorios
   runApp(
-    MyApp(authRepository: authRepository, clienteRepository: clienteRepository),
+    MyApp(
+      authRepository: authRepository, 
+      clienteRepository: clienteRepository,
+      marcaRepository: marcaRepository,
+      vehiculoRepository: vehiculoRepository,
+      repuestoRepository: repuestoRepository,
+      proveedorRepository: proveedorRepository, // 🛠️ Pasado a MyApp
+    ),
   );
 }
 
 class MyApp extends StatefulWidget {
   final AuthRepository authRepository;
-  final ClienteRepository clienteRepository; // 🛠️ Añadido campo
+  final ClienteRepository clienteRepository;
+  final MarcaRepository marcaRepository;
+  final VehiculoRepository vehiculoRepository;
+  final RepuestoRepository repuestoRepository;
+  final ProveedorRepository proveedorRepository; // 🛠️ Campo añadido
 
-  // 🛠️ Constructor actualizado para recibir ambos repositorios obligatoriamente
   const MyApp({
     super.key,
     required this.authRepository,
     required this.clienteRepository,
+    required this.marcaRepository,
+    required this.vehiculoRepository,
+    required this.repuestoRepository,
+    required this.proveedorRepository, // 🛠️ Requerido en constructor
   });
 
   @override
@@ -50,17 +87,23 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   late AuthProvider _authProvider;
-  late ClienteProvider _clienteProvider; // 🛠️ Añadido el provider de clientes
+  late ClienteProvider _clienteProvider; 
+  late MarcaProvider _marcaProvider; 
+  late VehiculoProvider _vehiculoProvider; 
+  late RepuestoProvider _repuestoProvider; 
+  late ProveedorProvider _proveedorProvider; // 🛠️ Variable de estado añadida
 
   @override
   void initState() {
     super.initState();
     _authProvider = AuthProvider(authRepository: widget.authRepository);
-
-    // 🛠️ Inicializamos el módulo de clientes usando su respectivo repositorio
-    _clienteProvider = ClienteProvider(
-      clienteRepository: widget.clienteRepository,
-    );
+    _clienteProvider = ClienteProvider(clienteRepository: widget.clienteRepository);
+    _marcaProvider = MarcaProvider(marcaRepository: widget.marcaRepository);
+    _vehiculoProvider = VehiculoProvider(vehiculoRepository: widget.vehiculoRepository);
+    _repuestoProvider = RepuestoProvider(repuestoRepository: widget.repuestoRepository);
+    
+    // 🛠️ Inicialización del provider de proveedores
+    _proveedorProvider = ProveedorProvider(proveedorRepository: widget.proveedorRepository);
 
     _authProvider.addListener(_onAuthChanged);
   }
@@ -69,7 +112,11 @@ class _MyAppState extends State<MyApp> {
   void dispose() {
     _authProvider.removeListener(_onAuthChanged);
     _authProvider.dispose();
-    _clienteProvider.dispose(); // 🛠️ Limpieza del provider de clientes
+    _clienteProvider.dispose(); 
+    _marcaProvider.dispose(); 
+    _vehiculoProvider.dispose(); 
+    _repuestoProvider.dispose(); 
+    _proveedorProvider.dispose(); // 🛠️ Limpieza añadida
     super.dispose();
   }
 
@@ -79,12 +126,13 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
-    // 🚀 Mantenemos tu _LocalAuthProviderWidget. Para que compartamos también el
-    // ClienteProvider a las vistas secundarias de forma nativa, lo inyectamos en la extensión de abajo.
     return _LocalAuthProviderWidget(
       authProvider: _authProvider,
-      clienteProvider:
-          _clienteProvider, // 🛠️ Pasamos el provider al InheritedWidget
+      clienteProvider: _clienteProvider,
+      marcaProvider: _marcaProvider, 
+      vehiculoProvider: _vehiculoProvider, 
+      repuestoProvider: _repuestoProvider, 
+      proveedorProvider: _proveedorProvider, // 🛠️ Inyectado en InheritedWidget
       child: MaterialApp(
         key: ValueKey(_authProvider.status),
         title: 'Taller Mecánico App',
@@ -97,15 +145,22 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-// 📦 InheritedWidget modificado para que exponga ambos Providers con la misma sintaxis limpia
 class _LocalAuthProviderWidget extends InheritedWidget {
   final AuthProvider authProvider;
-  final ClienteProvider clienteProvider; // 🛠️ Añadido campo
+  final ClienteProvider clienteProvider; 
+  final MarcaProvider marcaProvider; 
+  final VehiculoProvider vehiculoProvider; 
+  final RepuestoProvider repuestoProvider; 
+  final ProveedorProvider proveedorProvider; // 🛠️ Campo añadido
   final AuthStatus status;
 
   _LocalAuthProviderWidget({
     required this.authProvider,
-    required this.clienteProvider, // 🛠️ Requerido en constructor
+    required this.clienteProvider,
+    required this.marcaProvider,
+    required this.vehiculoProvider,
+    required this.repuestoProvider,
+    required this.proveedorProvider, // 🛠️ Requerido en constructor
     required super.child,
   }) : status = authProvider.status;
 
@@ -122,14 +177,30 @@ class _LocalAuthProviderWidget extends InheritedWidget {
   @override
   bool updateShouldNotify(_LocalAuthProviderWidget oldWidget) =>
       status != oldWidget.status ||
-      clienteProvider != oldWidget.clienteProvider;
+      clienteProvider != oldWidget.clienteProvider ||
+      marcaProvider != oldWidget.marcaProvider ||
+      vehiculoProvider != oldWidget.vehiculoProvider ||
+      repuestoProvider != oldWidget.repuestoProvider ||
+      proveedorProvider != oldWidget.proveedorProvider; // 🛠️ Sincronización integrada
 }
 
-// 📐 Extensiones limpias para que llames a tus Providers desde cualquier parte con context.X
 extension AuthContext on BuildContext {
   AuthProvider get authProvider =>
       _LocalAuthProviderWidget._getInherited(this).authProvider;
-  // 🛠️ Ahora puedes usar context.clienteProvider en tus vistas de Clientes de forma nativa:
+      
   ClienteProvider get clienteProvider =>
       _LocalAuthProviderWidget._getInherited(this).clienteProvider;
+
+  MarcaProvider get marcaProvider =>
+      _LocalAuthProviderWidget._getInherited(this).marcaProvider;
+
+  VehiculoProvider get vehiculoProvider =>
+      _LocalAuthProviderWidget._getInherited(this).vehiculoProvider;
+
+  RepuestoProvider get repuestoProvider =>
+      _LocalAuthProviderWidget._getInherited(this).repuestoProvider;
+
+  // 🛠️ Extensión limpia para consumir proveedores con "context.proveedorProvider"
+  ProveedorProvider get proveedorProvider =>
+      _LocalAuthProviderWidget._getInherited(this).proveedorProvider;
 }
