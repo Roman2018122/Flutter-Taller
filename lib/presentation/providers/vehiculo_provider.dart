@@ -1,98 +1,150 @@
-// lib/presentation/providers/vehiculo_provider.dart
+import 'package:flutter/foundation.dart';
 
-import 'package:flutter/material.dart';
-import 'package:taller_mecanico_app/domain/model/vehiculo_model.dart';
-import 'package:taller_mecanico_app/domain/repository/vehiculo_repository.dart';
+import '../../core/error/api_exception.dart';
+import '../../domain/model/vehiculo.dart';
+import '../../domain/repository/vehiculo_repository.dart';
 
 class VehiculoProvider extends ChangeNotifier {
-  final VehiculoRepository _vehiculoRepository;
+  final VehiculoRepository repository;
+
+  VehiculoProvider({required this.repository});
 
   List<Vehiculo> _vehiculos = [];
+  List<ModeloVehiculoOption> _modelos = [];
+
   bool _isLoading = false;
   String? _errorMessage;
 
-  VehiculoProvider({required VehiculoRepository vehiculoRepository})
-      : _vehiculoRepository = vehiculoRepository {
-    cargarVehiculos();
-  }
+  List<Vehiculo> get vehiculos => List.unmodifiable(_vehiculos);
 
-  List<Vehiculo> get vehiculos => _vehiculos;
+  List<ModeloVehiculoOption> get modelos => List.unmodifiable(_modelos);
+
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  Future<void> cargarVehiculos() async {
-    _isLoading = true;
+  Future<void> cargarVehiculos({String? search}) async {
+    _setLoading(true);
     _errorMessage = null;
-    notifyListeners();
 
     try {
-      _vehiculos = await _vehiculoRepository.getVehiculos();
-    } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _vehiculos = await repository.listar(search: search);
+    } on ApiException catch (error) {
+      _errorMessage = _formatError(error);
+    } catch (_) {
+      _errorMessage = 'No se pudieron cargar los vehículos.';
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      _setLoading(false);
     }
   }
 
-  Future<bool> agregarVehiculo(Vehiculo nuevoVehiculo) async {
-    _isLoading = true;
+  Future<bool> cargarModelos() async {
+    _setLoading(true);
     _errorMessage = null;
-    notifyListeners();
 
     try {
-      final vehiculoCreado = await _vehiculoRepository.createVehiculo(nuevoVehiculo);
-      _vehiculos.add(vehiculoCreado);
-      notifyListeners();
+      _modelos = await repository.listarModelos();
       return true;
-    } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
-      notifyListeners();
+    } on ApiException catch (error) {
+      _errorMessage = _formatError(error);
+      return false;
+    } catch (_) {
+      _errorMessage = 'No se pudieron cargar los modelos de vehículos.';
       return false;
     } finally {
-      _isLoading = false;
+      _setLoading(false);
     }
   }
 
-  Future<bool> modificarVehiculo(Vehiculo vehiculoEditado) async {
-    if (vehiculoEditado.id == null) return false;
-    _isLoading = true;
+  Future<bool> crearVehiculo(Vehiculo vehiculo) async {
+    _setLoading(true);
     _errorMessage = null;
-    notifyListeners();
 
     try {
-      final actualizado = await _vehiculoRepository.updateVehiculo(vehiculoEditado);
-      final index = _vehiculos.indexWhere((v) => v.id == actualizado.id);
+      final creado = await repository.crear(vehiculo);
+      _vehiculos.add(creado);
+      notifyListeners();
+      return true;
+    } on ApiException catch (error) {
+      _errorMessage = _formatError(error);
+      return false;
+    } catch (_) {
+      _errorMessage = 'No se pudo crear el vehículo.';
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> editarVehiculo(int id, Vehiculo vehiculo) async {
+    _setLoading(true);
+    _errorMessage = null;
+
+    try {
+      final actualizado = await repository.editar(id, vehiculo);
+
+      final index = _vehiculos.indexWhere((item) => item.id == id);
+
       if (index != -1) {
         _vehiculos[index] = actualizado;
       }
+
       notifyListeners();
       return true;
-    } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
-      notifyListeners();
+    } on ApiException catch (error) {
+      _errorMessage = _formatError(error);
+      return false;
+    } catch (_) {
+      _errorMessage = 'No se pudo editar el vehículo.';
       return false;
     } finally {
-      _isLoading = false;
+      _setLoading(false);
     }
   }
 
-  Future<bool> removerVehiculo(int id) async {
-    _isLoading = true;
+  Future<bool> eliminarVehiculo(int id) async {
+    _setLoading(true);
     _errorMessage = null;
-    notifyListeners();
 
     try {
-      await _vehiculoRepository.deleteVehiculo(id);
-      _vehiculos.removeWhere((v) => v.id == id);
+      await repository.eliminar(id);
+
+      _vehiculos.removeWhere((vehiculo) => vehiculo.id == id);
+
       notifyListeners();
       return true;
-    } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
-      notifyListeners();
+    } on ApiException catch (error) {
+      _errorMessage = _formatError(error);
+      return false;
+    } catch (_) {
+      _errorMessage = 'No se pudo eliminar el vehículo.';
       return false;
     } finally {
-      _isLoading = false;
+      _setLoading(false);
     }
+  }
+
+  String _formatError(ApiException error) {
+    final errors = error.validationErrors;
+
+    if (errors == null || errors.isEmpty) {
+      return error.message;
+    }
+
+    final messages = <String>[];
+
+    errors.forEach((field, value) {
+      if (value is List) {
+        messages.add('$field: ${value.join(', ')}');
+      } else {
+        messages.add('$field: $value');
+      }
+    });
+
+    return messages.join('\n');
+  }
+
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
   }
 }

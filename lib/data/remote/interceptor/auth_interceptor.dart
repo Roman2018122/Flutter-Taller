@@ -1,36 +1,31 @@
-// lib/data/remote/interceptor/auth_interceptor.dart
-
 import 'package:dio/dio.dart';
+
 import '../../local/secure_storage.dart';
 
 class AuthInterceptor extends Interceptor {
-  final SecureStorage _secureStorage;
+  final SecureStorageService storage;
 
-  AuthInterceptor(this._secureStorage);
+  AuthInterceptor({required this.storage});
 
   @override
   void onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    // 1. Buscamos si hay un token de acceso guardado en el teléfono
-    final token = await _secureStorage.getAccessToken();
+    final isLoginRequest =
+        options.path.endsWith('token/') &&
+        !options.path.endsWith('token/refresh/');
 
-    // 2. Si el token existe, se lo inyectamos automáticamente a la cabecera
-    if (token != null) {
-      options.headers['Authorization'] = 'Bearer $token';
+    final isRefreshRequest = options.path.endsWith('token/refresh/');
+
+    if (!isLoginRequest && !isRefreshRequest) {
+      final token = await storage.getAccessToken();
+
+      if (token != null && token.isNotEmpty) {
+        options.headers['Authorization'] = 'Bearer $token';
+      }
     }
 
-    // 3. Continuamos con la petición de forma normal
-    return handler.next(options);
-  }
-
-  @override
-  void onError(DioException err, ErrorInterceptorHandler handler) async {
-    // Aquí atraparemos si Django nos devuelve un 401 (Token Expirado)
-    if (err.response?.statusCode == 401) {
-      // TODO: Aquí implementaremos el refresco automático del token con SimpleJWT
-    }
-    return handler.next(err);
+    handler.next(options);
   }
 }

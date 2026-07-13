@@ -1,110 +1,130 @@
-// lib/presentation/providers/cliente_provider.dart
+import 'package:flutter/foundation.dart';
 
-import 'package:flutter/material.dart';
-import 'package:taller_mecanico_app/domain/model/cliente_model.dart';
-import 'package:taller_mecanico_app/domain/repository/cliente_repository.dart';
+import '../../core/error/api_exception.dart';
+import '../../domain/model/cliente.dart';
+import '../../domain/repository/cliente_repository.dart';
 
 class ClienteProvider extends ChangeNotifier {
-  final ClienteRepository _clienteRepository;
+  final ClienteRepository repository;
+
+  ClienteProvider({required this.repository});
 
   List<Cliente> _clientes = [];
   bool _isLoading = false;
   String? _errorMessage;
 
-  ClienteProvider({required ClienteRepository clienteRepository})
-    : _clienteRepository = clienteRepository {
-    cargarClientes(); // Carga la lista automáticamente al inicializar el módulo
-  }
-
-  // Getters para la UI
-  List<Cliente> get clientes => _clientes;
+  List<Cliente> get clientes => List.unmodifiable(_clientes);
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  // 🔄 OBTENER CLIENTES (READ)
-  Future<void> cargarClientes() async {
-    _isLoading = true;
+  Future<void> cargarClientes({String? search}) async {
+    _setLoading(true);
     _errorMessage = null;
-    notifyListeners();
 
     try {
-      _clientes = await _clienteRepository.getClientes();
-    } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _clientes = await repository.listar(search: search);
+    } on ApiException catch (error) {
+      _errorMessage = _formatError(error);
+    } catch (_) {
+      _errorMessage = 'Ocurrió un error inesperado.';
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      _setLoading(false);
     }
   }
 
-  // ➕ CREAR CLIENTE (CREATE)
-  Future<bool> agregarCliente(Cliente nuevoCliente) async {
-    _isLoading = true;
+  Future<bool> crearCliente(Cliente cliente) async {
+    _setLoading(true);
     _errorMessage = null;
-    notifyListeners();
 
     try {
-      final clienteCreado = await _clienteRepository.createCliente(
-        nuevoCliente,
-      );
-      _clientes.add(
-        clienteCreado,
-      ); // Lo añadimos localmente para no re-descargar toda la lista
+      final nuevoCliente = await repository.crear(cliente);
+      _clientes.add(nuevoCliente);
       notifyListeners();
       return true;
-    } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
-      notifyListeners();
+    } on ApiException catch (error) {
+      _errorMessage = _formatError(error);
+      return false;
+    } catch (_) {
+      _errorMessage = 'No se pudo crear el cliente.';
       return false;
     } finally {
-      _isLoading = false;
+      _setLoading(false);
     }
   }
 
-  // 📝 ACTUALIZAR CLIENTE (UPDATE)
-  Future<bool> modificarCliente(Cliente clienteEditado) async {
-    if (clienteEditado.id == null) return false;
-    _isLoading = true;
+  Future<bool> editarCliente(int id, Cliente cliente) async {
+    _setLoading(true);
     _errorMessage = null;
-    notifyListeners();
 
     try {
-      final actualizado = await _clienteRepository.updateCliente(
-        clienteEditado,
-      );
-      // Reemplazamos el viejo por el nuevo en la lista local
-      final index = _clientes.indexWhere((c) => c.id == actualizado.id);
-      if (index != null && index >= 0) {
+      final actualizado = await repository.editar(id, cliente);
+
+      final index = _clientes.indexWhere((item) => item.id == id);
+
+      if (index != -1) {
         _clientes[index] = actualizado;
       }
+
       notifyListeners();
       return true;
-    } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
-      notifyListeners();
+    } on ApiException catch (error) {
+      _errorMessage = _formatError(error);
+      return false;
+    } catch (_) {
+      _errorMessage = 'No se pudo editar el cliente.';
       return false;
     } finally {
-      _isLoading = false;
+      _setLoading(false);
     }
   }
 
-  // ELIMINAR CLIENTE (DELETE)
-  Future<bool> removerCliente(int id) async {
-    _isLoading = true;
+  Future<bool> eliminarCliente(int id) async {
+    _setLoading(true);
     _errorMessage = null;
-    notifyListeners();
 
     try {
-      await _clienteRepository.deleteCliente(id);
-      _clientes.removeWhere((c) => c.id == id); // Lo borramos de la lista local
+      await repository.eliminar(id);
+      _clientes.removeWhere((cliente) => cliente.id == id);
       notifyListeners();
       return true;
-    } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
-      notifyListeners();
+    } on ApiException catch (error) {
+      _errorMessage = _formatError(error);
+      return false;
+    } catch (_) {
+      _errorMessage = 'No se pudo eliminar el cliente.';
       return false;
     } finally {
-      _isLoading = false;
+      _setLoading(false);
     }
+  }
+
+  void clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  String _formatError(ApiException error) {
+    final validationErrors = error.validationErrors;
+
+    if (validationErrors == null || validationErrors.isEmpty) {
+      return error.message;
+    }
+
+    final messages = <String>[];
+
+    validationErrors.forEach((field, value) {
+      if (value is List) {
+        messages.add('$field: ${value.join(', ')}');
+      } else {
+        messages.add('$field: $value');
+      }
+    });
+
+    return messages.join('\n');
+  }
+
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
   }
 }

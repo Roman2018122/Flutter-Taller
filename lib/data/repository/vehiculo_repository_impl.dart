@@ -1,55 +1,147 @@
-// lib/data/repository/vehiculo_repository_impl.dart
+import 'package:dio/dio.dart';
 
-import 'package:taller_mecanico_app/domain/model/vehiculo_model.dart';
-import 'package:taller_mecanico_app/domain/repository/vehiculo_repository.dart';
-import 'package:taller_mecanico_app/data/remote/api/dio_client.dart';
+import '../../core/error/api_exception.dart';
+import '../../domain/model/vehiculo.dart';
+import '../../domain/repository/vehiculo_repository.dart';
+import '../remote/dto/vehiculo_dto.dart';
 
 class VehiculoRepositoryImpl implements VehiculoRepository {
-  final DioClient _dioClient;
+  final Dio dio;
 
-  VehiculoRepositoryImpl({required DioClient dioClient}) : _dioClient = dioClient;
+  VehiculoRepositoryImpl({required this.dio});
+
+  // Ajusta estas rutas si tus prefijos del router son diferentes.
+  static const String _vehiculosEndpoint = 'vehiculos/';
+  static const String _modelosEndpoint = 'modelos-vehiculo/';
 
   @override
-  Future<List<Vehiculo>> getVehiculos() async {
+  Future<List<Vehiculo>> listar({String? search}) async {
     try {
-      final response = await _dioClient.dio.get('/vehiculos/');
-      if (response.data is List) {
-        return (response.data as List)
-            .map((item) => Vehiculo.fromJson(item as Map<String, dynamic>))
-            .toList();
+      final response = await dio.get<dynamic>(
+        _vehiculosEndpoint,
+        queryParameters: {
+          if (search != null && search.trim().isNotEmpty)
+            'search': search.trim(),
+        },
+      );
+
+      return _parseVehiculos(response.data);
+    } on DioException catch (error) {
+      throw _mapDioError(error);
+    }
+  }
+
+  @override
+  Future<List<ModeloVehiculoOption>> listarModelos() async {
+    try {
+      final response = await dio.get<dynamic>(_modelosEndpoint);
+
+      final items = _extractList(response.data);
+
+      return items
+          .map(
+            (item) => ModeloVehiculoOptionDto.fromJson(
+              Map<String, dynamic>.from(item as Map),
+            ).toDomain(),
+          )
+          .toList();
+    } on DioException catch (error) {
+      throw _mapDioError(error);
+    }
+  }
+
+  @override
+  Future<Vehiculo> crear(Vehiculo vehiculo) async {
+    try {
+      final dto = VehiculoDto.fromDomain(vehiculo);
+
+      final response = await dio.post<Map<String, dynamic>>(
+        _vehiculosEndpoint,
+        data: dto.toJson(),
+      );
+
+      final data = response.data;
+
+      if (data == null) {
+        throw const ApiException(
+          message: 'El servidor no devolvió el vehículo creado.',
+        );
       }
-      return [];
-    } catch (e) {
-      throw Exception('Error al obtener los vehículos del taller: $e');
+
+      return VehiculoDto.fromJson(data).toDomain();
+    } on DioException catch (error) {
+      throw _mapDioError(error);
     }
   }
 
   @override
-  Future<Vehiculo> createVehiculo(Vehiculo vehiculo) async {
+  Future<Vehiculo> editar(int id, Vehiculo vehiculo) async {
     try {
-      final response = await _dioClient.dio.post('/vehiculos/', data: vehiculo.toJson());
-      return Vehiculo.fromJson(response.data as Map<String, dynamic>);
-    } catch (e) {
-      throw Exception('Error al registrar el vehículo: $e');
+      final dto = VehiculoDto.fromDomain(vehiculo);
+
+      final response = await dio.patch<Map<String, dynamic>>(
+        '$_vehiculosEndpoint$id/',
+        data: dto.toJson(),
+      );
+
+      final data = response.data;
+
+      if (data == null) {
+        throw const ApiException(
+          message: 'El servidor no devolvió el vehículo actualizado.',
+        );
+      }
+
+      return VehiculoDto.fromJson(data).toDomain();
+    } on DioException catch (error) {
+      throw _mapDioError(error);
     }
   }
 
   @override
-  Future<Vehiculo> updateVehiculo(Vehiculo vehiculo) async {
+  Future<void> eliminar(int id) async {
     try {
-      final response = await _dioClient.dio.put('/vehiculos/${vehiculo.id}/', data: vehiculo.toJson());
-      return Vehiculo.fromJson(response.data as Map<String, dynamic>);
-    } catch (e) {
-      throw Exception('Error al actualizar datos del vehículo: $e');
+      await dio.delete<void>('$_vehiculosEndpoint$id/');
+    } on DioException catch (error) {
+      throw _mapDioError(error);
     }
   }
 
-  @override
-  Future<void> deleteVehiculo(int id) async {
-    try {
-      await _dioClient.dio.delete('/vehiculos/$id/');
-    } catch (e) {
-      throw Exception('Error al eliminar el vehículo: $e');
+  List<Vehiculo> _parseVehiculos(dynamic data) {
+    final items = _extractList(data);
+
+    return items
+        .map(
+          (item) => VehiculoDto.fromJson(
+            Map<String, dynamic>.from(item as Map),
+          ).toDomain(),
+        )
+        .toList();
+  }
+
+  List<dynamic> _extractList(dynamic data) {
+    if (data is List) {
+      return data;
     }
+
+    if (data is Map<String, dynamic> && data['results'] is List) {
+      return data['results'] as List<dynamic>;
+    }
+
+    throw const ApiException(
+      message: 'La respuesta del servidor no tiene el formato esperado.',
+    );
+  }
+
+  ApiException _mapDioError(DioException error) {
+    final mappedError = error.error;
+
+    if (mappedError is ApiException) {
+      return mappedError;
+    }
+
+    return const ApiException(
+      message: 'No se pudo completar la operación con vehículos.',
+    );
   }
 }

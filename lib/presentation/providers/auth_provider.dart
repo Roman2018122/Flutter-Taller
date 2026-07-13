@@ -1,71 +1,91 @@
-// lib/presentation/providers/auth_provider.dart
+import 'package:flutter/foundation.dart';
 
-import 'package:flutter/material.dart';
-import '../../domain/model/auth_models.dart';
+import '../../core/error/api_exception.dart';
 import '../../domain/repository/auth_repository.dart';
 
 enum AuthStatus { checking, authenticated, unauthenticated }
 
 class AuthProvider extends ChangeNotifier {
-  final AuthRepository _authRepository;
+  final AuthRepository repository;
+
+  AuthProvider({required this.repository});
 
   AuthStatus _status = AuthStatus.checking;
-  LoggedUser? _currentUser;
+  bool _isLoading = false;
   String? _errorMessage;
 
-  AuthProvider({required AuthRepository authRepository})
-    : _authRepository = authRepository {
-    checkStatus();
-  }
-  // ── Getters para que las pantallas lean el estado ────────────────
   AuthStatus get status => _status;
-  LoggedUser? get currentUser => _currentUser;
+  bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  bool get isLoading => _status == AuthStatus.checking;
 
-  // ── Acción de Login ──────────────────────────────────────────────
-  Future<bool> login(String username, String password) async {
-    _status = AuthStatus.checking;
-    _errorMessage = null;
-    notifyListeners(); // Le avisa a la pantalla que ponga un círculo de carga
+  Future<void> initialize() async {
+    final hasSession = await repository.hasSession();
 
-    try {
-      _currentUser = await _authRepository.login(
-        username: username,
-        password: password,
-      );
-      _status = AuthStatus.authenticated;
-      notifyListeners(); // Redibuja la app y le da acceso al sistema
-      return true;
-    } catch (e) {
-      _status = AuthStatus.unauthenticated;
-      _currentUser = null;
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
-      notifyListeners(); // Muestra el mensaje de error en la pantalla
-      return false;
-    }
-  }
+    _status = hasSession
+        ? AuthStatus.authenticated
+        : AuthStatus.unauthenticated;
 
-  // ── Verificar Sesión Automática ──────────────────────────────────
-  Future<void> checkStatus() async {
-    try {
-      _currentUser = await _authRepository.checkAuthStatus();
-      _status = (_currentUser != null)
-          ? AuthStatus.authenticated
-          : AuthStatus.unauthenticated;
-    } catch (_) {
-      _status = AuthStatus.unauthenticated;
-      _currentUser = null;
-    }
     notifyListeners();
   }
 
-  // ── Cerrar Sesión ────────────────────────────────────────────────
-  Future<void> logout() async {
-    await _authRepository.logout();
-    _status = AuthStatus.unauthenticated;
-    _currentUser = null;
+  Future<bool> login({
+    required String username,
+    required String password,
+  }) async {
+    _setLoading(true);
     _errorMessage = null;
-    notifyListeners(); // Saca al usuario instantáneamente a la pantalla de Login
+
+    try {
+      await repository.login(username: username, password: password);
+
+      _status = AuthStatus.authenticated;
+      return true;
+    } on ApiException catch (error) {
+      _errorMessage = _formatError(error);
+      _status = AuthStatus.unauthenticated;
+      return false;
+    } catch (_) {
+      _errorMessage = 'Ocurrió un error inesperado.';
+      _status = AuthStatus.unauthenticated;
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<void> logout() async {
+    await repository.logout();
+    _status = AuthStatus.unauthenticated;
+    notifyListeners();
+  }
+
+  void clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  String _formatError(ApiException error) {
+    final validationErrors = error.validationErrors;
+
+    if (validationErrors == null || validationErrors.isEmpty) {
+      return error.message;
+    }
+
+    final messages = <String>[];
+
+    validationErrors.forEach((field, value) {
+      if (value is List) {
+        messages.add('$field: ${value.join(', ')}');
+      } else {
+        messages.add('$field: $value');
+      }
+    });
+
+    return messages.join('\n');
+  }
+
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
   }
 }

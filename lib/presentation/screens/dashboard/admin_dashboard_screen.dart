@@ -1,12 +1,19 @@
-// lib/presentation/screens/dashboard/admin_dashboard_screen.dart
-
 import 'package:flutter/material.dart';
-import 'package:taller_mecanico_app/theme/app_colors.dart';
-import 'package:taller_mecanico_app/main.dart'; 
-import 'package:taller_mecanico_app/presentation/screens/client/clientes_list_screen.dart'; 
-import 'package:taller_mecanico_app/presentation/screens/marca/marcas_list_screen.dart'; 
-import 'package:taller_mecanico_app/presentation/screens/repuesto/repuestos_list_screen.dart';
-import 'package:taller_mecanico_app/presentation/screens/proveedor/proveedores_list_screen.dart'; // ✅ Importación de proveedores
+import 'package:provider/provider.dart';
+//auth
+import '../../providers/auth_provider.dart';
+//cliente
+import '../clientes/cliente_list_screen.dart';
+//vehiculo
+import '../vehiculos/vehiculo_list_screen.dart';
+//servicios
+import '../servicios/servicio_list_screen.dart';
+//especialidades
+import '../especialidades/especialidad_list_screen.dart';
+//mecanicos
+import '../mecanicos/mecanico_list_screen.dart';
+//ordenes
+import '../ordenes/orden_reparacion_list_screen.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -15,202 +22,121 @@ class AdminDashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PANEL TALLER MECÁNICO'),
+        title: const Text('Administración'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout_rounded, color: AppColors.accent),
+            tooltip: 'Cerrar sesión',
             onPressed: () {
-              context.authProvider.logout();
+              context.read<AuthProvider>().logout();
+            },
+            icon: const Icon(Icons.logout),
+          ),
+        ],
+      ),
+      body: GridView.count(
+        padding: const EdgeInsets.all(16),
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        children: [
+          _DashboardItem(
+            icon: Icons.people,
+            title: 'Clientes',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ClienteListScreen()),
+              );
+            },
+          ),
+          _DashboardItem(
+            icon: Icons.directions_car,
+            title: 'Vehículos',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const VehiculoListScreen()),
+              );
+            },
+          ),
+          _DashboardItem(
+            icon: Icons.calendar_month,
+            title: 'Citas',
+            onTap: () {},
+          ),
+          _DashboardItem(
+            icon: Icons.build,
+            title: 'Servicios',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ServicioListScreen()),
+              );
+            },
+            //especialidades
+          ),
+          _DashboardItem(
+            icon: Icons.handyman,
+            title: 'Especialidades',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const EspecialidadListScreen(),
+                ),
+              );
+            },
+          ),
+          _DashboardItem(
+            icon: Icons.engineering,
+            title: 'Mecánicos',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const MecanicoListScreen()),
+              );
+            },
+          ),
+          _DashboardItem(
+            icon: Icons.receipt_long,
+            title: 'Órdenes',
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const OrdenReparacionListScreen(),
+                ),
+              );
             },
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Estadísticas Operativas',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              
-              // Tarjeta para órdenes activas
-              Card(
-                color: AppColors.surface,
-                shape: RoundedRectangleBorder(
-                  side: const BorderSide(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const ListTile(
-                  leading: Icon(
-                    Icons.build_circle_rounded,
-                    color: AppColors.accent,
-                    size: 40,
-                  ),
-                  title: Text(
-                    'Vehículos en Elevador',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Text(
-                    'Hay 4 órdenes en proceso de reparación actualmente.',
-                  ),
-                  trailing: Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 16,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
+    );
+  }
+}
 
-              const SizedBox(height: 12), 
+class _DashboardItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
 
-              // 🚀 ACCESO A CLIENTES:
-              Card(
-                color: AppColors.surface,
-                shape: RoundedRectangleBorder(
-                  side: const BorderSide(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ListTile(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ClientesListScreen()),
-                    );
-                  },
-                  leading: const Icon(
-                    Icons.people_alt_rounded,
-                    color: AppColors.accent,
-                    size: 40,
-                  ),
-                  title: const Text(
-                    'Gestión de Clientes',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: const Text(
-                    'Ver el listado de clientes, buscar por cédula o registrar nuevos.',
-                  ),
-                  trailing: const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 16,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
+  const _DashboardItem({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+  });
 
-              const SizedBox(height: 12), 
-
-              // 🚀 ACCESO A MARCAS:
-              Card(
-                color: AppColors.surface,
-                shape: RoundedRectangleBorder(
-                  side: const BorderSide(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ListTile(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const MarcasListScreen()),
-                    );
-                  },
-                  leading: const Icon(
-                    Icons.time_to_leave_rounded, 
-                    color: AppColors.accent,
-                    size: 40,
-                  ),
-                  title: const Text(
-                    'Marcas de Vehículos',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: const Text(
-                    'Configurar fabricantes y marcas del taller (Toyota, Chevrolet, etc.).',
-                  ),
-                  trailing: const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 16,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // 🚀 ACCESO A PROVEEDORES (NUEVO):
-              Card(
-                color: AppColors.surface,
-                shape: RoundedRectangleBorder(
-                  side: const BorderSide(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ListTile(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ProveedoresListScreen()),
-                    );
-                  },
-                  leading: const Icon(
-                    Icons.business_rounded, 
-                    color: AppColors.accent,
-                    size: 40,
-                  ),
-                  title: const Text(
-                    'Proveedores Comerciales',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: const Text(
-                    'Administrar casas comerciales, números de RUC y datos de contacto.',
-                  ),
-                  trailing: const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 16,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // 🚀 ACCESO A INVENTARIO DE REPUESTOS:
-              Card(
-                color: AppColors.surface,
-                shape: RoundedRectangleBorder(
-                  side: const BorderSide(color: AppColors.border),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: ListTile(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const RepuestosListScreen()),
-                    );
-                  },
-                  leading: const Icon(
-                    Icons.inventory_rounded, 
-                    color: AppColors.accent,
-                    size: 40,
-                  ),
-                  title: const Text(
-                    'Inventario de Repuestos',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: const Text(
-                    'Controlar existencias, agregar refacciones y ajustar precios de venta.',
-                  ),
-                  trailing: const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 16,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ),
-
-            ],
-          ),
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 44),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ],
         ),
       ),
     );

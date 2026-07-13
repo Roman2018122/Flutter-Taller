@@ -1,10 +1,13 @@
-// lib/domain/repository/vehiculo_repository.dart
+import '../model/vehiculo.dart';
 
-import '../model/vehiculo_model.dart';
+abstract interface class VehiculoRepository {
+  Future<List<Vehiculo>> listar({String? search});
 
-abstract class VehiculoRepository {
-  Future<List<Vehiculo>> getVehiculos();
-  Future<Vehiculo> createVehiculo(Vehiculo vehiculo);
-  Future<Vehiculo> updateVehiculo(Vehiculo vehiculo);
-  Future<void> deleteVehiculo(int id);
+  Future<List<ModeloVehiculoOption>> listarModelos();
+
+  Future<Vehiculo> crear(Vehiculo vehiculo);
+
+  Future<Vehiculo> editar(int id, Vehiculo vehiculo);
+
+  Future<void> eliminar(int id);
 }

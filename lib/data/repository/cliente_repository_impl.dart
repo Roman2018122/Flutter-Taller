@@ -1,64 +1,142 @@
-// lib/data/repository/cliente_repository_impl.dart
+import 'package:dio/dio.dart';
 
-import '../../../domain/model/cliente_model.dart';
-import '../../../domain/repository/cliente_repository.dart';
-
-import 'package:taller_mecanico_app/data/remote/api/dio_client.dart';
+import '../../core/error/api_exception.dart';
+import '../../domain/model/cliente.dart';
+import '../../domain/repository/cliente_repository.dart';
+import '../remote/dto/cliente_dto.dart';
 
 class ClienteRepositoryImpl implements ClienteRepository {
-  final DioClient _dioClient;
+  final Dio dio;
 
-  ClienteRepositoryImpl({required DioClient dioClient})
-    : _dioClient = dioClient;
+  ClienteRepositoryImpl({required this.dio});
+
+  static const String _endpoint = 'clientes/';
 
   @override
-  Future<List<Cliente>> getClientes() async {
+  Future<List<Cliente>> listar({String? search}) async {
     try {
-      final response = await _dioClient.dio.get('/clientes/');
+      final response = await dio.get<dynamic>(
+        _endpoint,
+        queryParameters: {
+          if (search != null && search.trim().isNotEmpty)
+            'search': search.trim(),
+        },
+      );
 
-      if (response.data is List) {
-        return (response.data as List)
-            .map((item) => Cliente.fromMap(item as Map<String, dynamic>))
+      final data = response.data;
+
+      if (data is List) {
+        return data
+            .map(
+              (item) =>
+                  ClienteDto.fromJson(item as Map<String, dynamic>).toDomain(),
+            )
             .toList();
       }
-      return [];
-    } catch (e) {
-      throw Exception('Error al obtener la lista de clientes: $e');
-    }
-  }
 
-  @override
-  Future<Cliente> createCliente(Cliente cliente) async {
-    try {
-      final response = await _dioClient.dio.post(
-        '/clientes/',
-        data: cliente.toMap(),
+      // Para cuando agregues paginación en Django.
+      if (data is Map<String, dynamic> && data['results'] is List) {
+        final results = data['results'] as List;
+
+        return results
+            .map(
+              (item) =>
+                  ClienteDto.fromJson(item as Map<String, dynamic>).toDomain(),
+            )
+            .toList();
+      }
+
+      throw const ApiException(
+        message: 'La respuesta de clientes no tiene el formato esperado.',
       );
-      return Cliente.fromMap(response.data as Map<String, dynamic>);
-    } catch (e) {
-      throw Exception('Error al registrar el cliente: $e');
+    } on DioException catch (error) {
+      throw _mapDioError(error);
     }
   }
 
   @override
-  Future<Cliente> updateCliente(Cliente cliente) async {
+  Future<Cliente> obtener(int id) async {
     try {
-      final response = await _dioClient.dio.put(
-        '/clientes/${cliente.id}/',
-        data: cliente.toMap(),
+      final response = await dio.get<Map<String, dynamic>>('$_endpoint$id/');
+
+      final data = response.data;
+
+      if (data == null) {
+        throw const ApiException(
+          message: 'El servidor devolvió una respuesta vacía.',
+        );
+      }
+
+      return ClienteDto.fromJson(data).toDomain();
+    } on DioException catch (error) {
+      throw _mapDioError(error);
+    }
+  }
+
+  @override
+  Future<Cliente> crear(Cliente cliente) async {
+    try {
+      final dto = ClienteDto.fromDomain(cliente);
+
+      final response = await dio.post<Map<String, dynamic>>(
+        _endpoint,
+        data: dto.toJson(),
       );
-      return Cliente.fromMap(response.data as Map<String, dynamic>);
-    } catch (e) {
-      throw Exception('Error al actualizar el cliente: $e');
+
+      final data = response.data;
+
+      if (data == null) {
+        throw const ApiException(message: 'No se recibió el cliente creado.');
+      }
+
+      return ClienteDto.fromJson(data).toDomain();
+    } on DioException catch (error) {
+      throw _mapDioError(error);
     }
   }
 
   @override
-  Future<void> deleteCliente(int id) async {
+  Future<Cliente> editar(int id, Cliente cliente) async {
     try {
-      await _dioClient.dio.delete('/clientes/$id/');
-    } catch (e) {
-      throw Exception('Error al eliminar el cliente: $e');
+      final dto = ClienteDto.fromDomain(cliente);
+
+      final response = await dio.patch<Map<String, dynamic>>(
+        '$_endpoint$id/',
+        data: dto.toJson(),
+      );
+
+      final data = response.data;
+
+      if (data == null) {
+        throw const ApiException(
+          message: 'No se recibió el cliente actualizado.',
+        );
+      }
+
+      return ClienteDto.fromJson(data).toDomain();
+    } on DioException catch (error) {
+      throw _mapDioError(error);
     }
+  }
+
+  @override
+  Future<void> eliminar(int id) async {
+    try {
+      await dio.delete<void>('$_endpoint$id/');
+    } on DioException catch (error) {
+      throw _mapDioError(error);
+    }
+  }
+
+  ApiException _mapDioError(DioException error) {
+    final mappedError = error.error;
+
+    if (mappedError is ApiException) {
+      return mappedError;
+    }
+
+    return const ApiException(
+      message: 'No se pudo completar la operación con clientes.',
+    );
   }
 }

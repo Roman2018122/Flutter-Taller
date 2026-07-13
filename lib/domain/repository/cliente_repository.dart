@@ -1,10 +1,13 @@
-// lib/domain/repository/cliente_repository.dart
+import '../model/cliente.dart';
 
-import '../model/cliente_model.dart';
+abstract interface class ClienteRepository {
+  Future<List<Cliente>> listar({String? search});
 
-abstract class ClienteRepository {
-  Future<List<Cliente>> getClientes();
-  Future<Cliente> createCliente(Cliente cliente);
-  Future<Cliente> updateCliente(Cliente cliente);
-  Future<void> deleteCliente(int id);
+  Future<Cliente> obtener(int id);
+
+  Future<Cliente> crear(Cliente cliente);
+
+  Future<Cliente> editar(int id, Cliente cliente);
+
+  Future<void> eliminar(int id);
 }

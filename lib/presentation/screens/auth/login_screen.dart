@@ -1,8 +1,7 @@
-// lib/presentation/screens/auth/login_screen.dart
-
 import 'package:flutter/material.dart';
-import 'package:taller_mecanico_app/theme/app_colors.dart';
-import 'package:taller_mecanico_app/main.dart'; // 🛠️ Importante para reconocer "context.authProvider"
+import 'package:provider/provider.dart';
+
+import '../../providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,9 +14,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isPasswordVisible = false;
-  bool _isLoading = false;
-  String? _serverError;
+
+  bool _hidePassword = true;
 
   @override
   void dispose() {
@@ -26,156 +24,120 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _submitForm() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
 
-    setState(() {
-      _isLoading = true;
-      _serverError = null;
-    });
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-    // 🚀 CONEXIÓN REAL CON DJANGO:
-    // Consumimos el método de login a través de la extensión del InheritedWidget
-    final success = await context.authProvider.login(
-      _usernameController.text.trim(),
-      _passwordController.text,
+    final authProvider = context.read<AuthProvider>();
+
+    final success = await authProvider.login(
+      username: _usernameController.text,
+      password: _passwordController.text,
     );
 
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-        if (!success) {
-          // Si Django rechaza las credenciales, capturamos el mensaje de error real
-          _serverError = context.authProvider.errorMessage;
-        } else {
-          // Si es exitoso, el MaterialApp en main.dart reacciona de inmediato al cambio
-          // de estado y redirige al Dashboard correspondiente gracias al AppRouter.
-        }
-      });
+    if (!mounted || success) {
+      return;
     }
+
+    final message = authProvider.errorMessage ?? 'No se pudo iniciar sesión.';
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = context.watch<AuthProvider>().isLoading;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Icon(
-                  Icons.build_circle_rounded,
-                  size: 90,
-                  color: AppColors.accent,
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'SISTEMA DE CONTROL',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.5,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const Text(
-                  'Mantenimiento & Reparaciones',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                if (_serverError != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
-                      border: Border.all(
-                        color: Colors.redAccent.withOpacity(0.5),
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      _serverError!,
-                      style: const TextStyle(
-                        color: Colors.redAccent,
-                        fontSize: 13,
-                      ),
+      appBar: AppBar(title: const Text('Taller mecánico')),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Icon(Icons.car_repair, size: 80),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Iniciar sesión',
                       textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.headlineMedium,
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-
-                TextFormField(
-                  controller: _usernameController,
-                  style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: const InputDecoration(
-                    labelText: 'Usuario',
-                    prefixIcon: Icon(
-                      Icons.person_outline_rounded,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                  validator: (value) => (value == null || value.trim().isEmpty)
-                      ? 'Ingresa tu nombre de usuario'
-                      : null,
-                ),
-                const SizedBox(height: 20),
-
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: !_isPasswordVisible,
-                  style: const TextStyle(color: AppColors.textPrimary),
-                  decoration: InputDecoration(
-                    labelText: 'Contraseña',
-                    prefixIcon: const Icon(
-                      Icons.lock_outline_rounded,
-                      color: AppColors.textSecondary,
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _isPasswordVisible
-                            ? Icons.visibility_off_rounded
-                            : Icons.visibility_rounded,
-                        color: AppColors.textSecondary,
+                    const SizedBox(height: 32),
+                    TextFormField(
+                      controller: _usernameController,
+                      enabled: !isLoading,
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Usuario',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.person),
                       ),
-                      onPressed: () => setState(
-                        () => _isPasswordVisible = !_isPasswordVisible,
-                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Ingresa tu usuario.';
+                        }
+                        return null;
+                      },
                     ),
-                  ),
-                  validator: (value) => (value == null || value.isEmpty)
-                      ? 'Ingresa tu contraseña'
-                      : null,
-                ),
-                const SizedBox(height: 32),
-
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _submitForm,
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              AppColors.background,
-                            ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _passwordController,
+                      enabled: !isLoading,
+                      obscureText: _hidePassword,
+                      onFieldSubmitted: (_) => _submit(),
+                      decoration: InputDecoration(
+                        labelText: 'Contraseña',
+                        border: const OutlineInputBorder(),
+                        prefixIcon: const Icon(Icons.lock),
+                        suffixIcon: IconButton(
+                          onPressed: () {
+                            setState(() {
+                              _hidePassword = !_hidePassword;
+                            });
+                          },
+                          icon: Icon(
+                            _hidePassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
                           ),
-                        )
-                      : const Text('INGRESAR AL TALLER'),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Ingresa tu contraseña.';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      onPressed: isLoading ? null : _submit,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        child: isLoading
+                            ? const SizedBox.square(
+                                dimension: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Ingresar'),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
