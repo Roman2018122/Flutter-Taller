@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:taller_mecanico_app/presentation/navigation/app_router.dart';
 
 import 'data/local/secure_storage.dart';
 import 'data/remote/api/dio_client.dart';
 import 'data/repository/auth_repository_impl.dart';
 import 'presentation/providers/auth_provider.dart';
-import 'presentation/screens/auth/login_screen.dart';
-import 'presentation/screens/dashboard/admin_dashboard_screen.dart';
+
 //Clientes
 import 'data/repository/cliente_repository_impl.dart';
 import 'presentation/providers/cliente_provider.dart';
@@ -28,6 +28,8 @@ import 'presentation/providers/orden_reparacion_provider.dart';
 //detalle servicio
 import 'data/repository/detalle_servicio_repository_impl.dart';
 import 'presentation/providers/detalle_servicio_provider.dart';
+
+import 'package:go_router/go_router.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -61,6 +63,8 @@ Future<void> main() async {
   final authProvider = AuthProvider(repository: authRepository);
 
   await authProvider.initialize();
+
+  final appRouter = AppRouter.createRouter(authProvider: authProvider);
 
   runApp(
     MultiProvider(
@@ -98,31 +102,23 @@ Future<void> main() async {
               DetalleServicioProvider(repository: detalleServicioRepository),
         ),
       ],
-      child: const TallerApp(),
+      child: TallerApp(router: appRouter),
     ),
   );
 }
 
 class TallerApp extends StatelessWidget {
-  const TallerApp({super.key});
+  final GoRouter router;
+
+  const TallerApp({super.key, required this.router});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'Taller mecánico',
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue),
-      home: Consumer<AuthProvider>(
-        builder: (context, authProvider, child) {
-          return switch (authProvider.status) {
-            AuthStatus.checking => const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            ),
-            AuthStatus.authenticated => const AdminDashboardScreen(),
-            AuthStatus.unauthenticated => const LoginScreen(),
-          };
-        },
-      ),
+      routerConfig: router,
     );
   }
 }

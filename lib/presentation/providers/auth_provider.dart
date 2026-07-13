@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import '../../core/error/api_exception.dart';
 import '../../domain/repository/auth_repository.dart';
 
+import '../../domain/model/register_request.dart';
+
 enum AuthStatus { checking, authenticated, unauthenticated }
 
 class AuthProvider extends ChangeNotifier {
@@ -57,6 +59,25 @@ class AuthProvider extends ChangeNotifier {
     await repository.logout();
     _status = AuthStatus.unauthenticated;
     notifyListeners();
+  }
+
+  Future<bool> register(RegisterRequest request) async {
+    _setLoading(true);
+    _errorMessage = null;
+
+    try {
+      await repository.register(request);
+
+      return true;
+    } on ApiException catch (error) {
+      _errorMessage = _formatError(error);
+      return false;
+    } catch (_) {
+      _errorMessage = 'Ocurrió un error inesperado.';
+      return false;
+    } finally {
+      _setLoading(false);
+    }
   }
 
   void clearError() {

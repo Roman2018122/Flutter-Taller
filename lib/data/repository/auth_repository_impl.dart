@@ -7,11 +7,28 @@ import '../../domain/repository/auth_repository.dart';
 import '../local/secure_storage.dart';
 import '../remote/dto/auth_dto.dart';
 
+import '../../domain/model/register_request.dart';
+
 class AuthRepositoryImpl implements AuthRepository {
   final Dio dio;
   final SecureStorageService storage;
 
   AuthRepositoryImpl({required this.dio, required this.storage});
+
+  @override
+  Future<void> register(RegisterRequest request) async {
+    try {
+      await dio.post<Map<String, dynamic>>('registro/', data: request.toJson());
+    } on DioException catch (error) {
+      final mappedError = error.error;
+
+      if (mappedError is ApiException) {
+        throw mappedError;
+      }
+
+      throw const ApiException(message: 'No se pudo crear la cuenta.');
+    }
+  }
 
   @override
   Future<AuthTokens> login({

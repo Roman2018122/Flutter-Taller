@@ -2,18 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 //auth
 import '../../providers/auth_provider.dart';
-//cliente
-import '../clientes/cliente_list_screen.dart';
-//vehiculo
-import '../vehiculos/vehiculo_list_screen.dart';
-//servicios
-import '../servicios/servicio_list_screen.dart';
-//especialidades
-import '../especialidades/especialidad_list_screen.dart';
-//mecanicos
-import '../mecanicos/mecanico_list_screen.dart';
-//ordenes
-import '../ordenes/orden_reparacion_list_screen.dart';
+//
+import 'package:go_router/go_router.dart';
+import '../../navigation/app_router.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -26,9 +17,16 @@ class AdminDashboardScreen extends StatelessWidget {
         actions: [
           IconButton(
             tooltip: 'Cerrar sesión',
-            onPressed: () {
-              context.read<AuthProvider>().logout();
+            onPressed: () async {
+              await context.read<AuthProvider>().logout();
+
+              if (!context.mounted) {
+                return;
+              }
+
+              context.go(AppRoutes.publicHome);
             },
+
             icon: const Icon(Icons.logout),
           ),
         ],
@@ -43,18 +41,14 @@ class AdminDashboardScreen extends StatelessWidget {
             icon: Icons.people,
             title: 'Clientes',
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ClienteListScreen()),
-              );
+              context.push(AppRoutes.clientes);
             },
           ),
           _DashboardItem(
             icon: Icons.directions_car,
             title: 'Vehículos',
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const VehiculoListScreen()),
-              );
+              context.push(AppRoutes.vehiculos);
             },
           ),
           _DashboardItem(
@@ -66,9 +60,7 @@ class AdminDashboardScreen extends StatelessWidget {
             icon: Icons.build,
             title: 'Servicios',
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ServicioListScreen()),
-              );
+              context.push(AppRoutes.serviciosAdmin);
             },
             //especialidades
           ),
@@ -76,31 +68,21 @@ class AdminDashboardScreen extends StatelessWidget {
             icon: Icons.handyman,
             title: 'Especialidades',
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const EspecialidadListScreen(),
-                ),
-              );
+              context.push(AppRoutes.especialidades);
             },
           ),
           _DashboardItem(
             icon: Icons.engineering,
             title: 'Mecánicos',
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const MecanicoListScreen()),
-              );
+              context.push(AppRoutes.mecanicos);
             },
           ),
           _DashboardItem(
             icon: Icons.receipt_long,
             title: 'Órdenes',
             onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const OrdenReparacionListScreen(),
-                ),
-              );
+              context.push(AppRoutes.ordenes);
             },
           ),
         ],

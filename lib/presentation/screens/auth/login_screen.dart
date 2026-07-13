@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 
+import 'package:go_router/go_router.dart';
+import '../../navigation/app_router.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -38,10 +41,14 @@ class _LoginScreenState extends State<LoginScreen> {
       password: _passwordController.text,
     );
 
-    if (!mounted || success) {
+    if (!mounted) {
       return;
     }
 
+    if (success) {
+      context.go(AppRoutes.admin);
+      return;
+    }
     final message = authProvider.errorMessage ?? 'No se pudo iniciar sesión.';
 
     ScaffoldMessenger.of(
@@ -134,6 +141,16 @@ class _LoginScreenState extends State<LoginScreen> {
                               )
                             : const Text('Ingresar'),
                       ),
+                    ),
+
+                    const SizedBox(height: 12),
+                    TextButton(
+                      onPressed: isLoading
+                          ? null
+                          : () {
+                              context.go(AppRoutes.register);
+                            },
+                      child: const Text('¿No tienes cuenta? Regístrate'),
                     ),
                   ],
                 ),
